@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--	<head>
+		<title>three.js webgl - clipIntersection</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				margin: 0px;
+				background-color: #000000;
+				overflow: hidden;
+			}
+		</style>
+	</head>-->
+	<body>
+<p id="errorMessage"></p>
+
+<video id="monitor" autoplay width="160" height="120" style="visibility: hidden; float:left;"></video>
+<canvas id="videoImage" width="160" height="120" style="visibility: hidden; float:left;"></canvas>
+
+<script>
+navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+window.URL = window.URL || window.webkitURL;
+
+var camvideo = document.getElementById('monitor');
+
+	if (!navigator.getUserMedia) 
+	{
+		document.getElementById('errorMessage').innerHTML = 
+			'Sorry. <code>navigator.getUserMedia()</code> is not available.';
+	} else {
+		navigator.getUserMedia({video: true}, gotStream, noStream);
+	}
+
+function gotStream(stream) 
+{
+	if (window.URL) 
+	{   camvideo.src = window.URL.createObjectURL(stream);   } 
+	else // Opera
+	{   camvideo.src = stream;   }
+
+	camvideo.onerror = function(e) 
+	{   stream.stop();   };
+
+	stream.onended = noStream;
+}
+
+function noStream(e) 
+{
+	var msg = 'No camera available.';
+	if (e.code == 1) 
+	{   msg = 'User denied access to use camera.';   }
+	document.getElementById('errorMessage').textContent = msg;
+}
+</script>
+		<script src="build/three.js"></script>
+		<script src="examples/js/controls/OrbitControls.js"></script>
+		<script src="examples/js/libs/stats.min.js"></script>
+		<script src="examples/js/libs/dat.gui.min.js"></script>
+		<script src="examples/js/loaders/STLLoader.js"></script>
+
+		<script src="examples/js/Detector.js"></script>
+		<!--<script src="js/libs/stats.min.js"></script>-->
+
+		<script>
+
+			var camera, scene, renderer;
+			var group;
+var video, videoImage, videoImageContext, backgroundtexture, backgroundMesh,videoTexture,controls, stats,mesh;
+        var backgroundScene;
+        var backgroundCamera;
+			init();
+			animate();
+
+			function init() {
+
+				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 800 );
+
+				camera.position.set( -20, 10, 50 );
+				camera.lookAt( new THREE.Vector3( 0, 0, 0) );
+
+				scene = new THREE.Scene();
+
+				// Lights
+
+				var light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
+				scene.add( light );
+
+				var clipPlanes = [
+					new THREE.Plane( new THREE.Vector3( 1,  0,  0 ), 0 ),
+					new THREE.Plane( new THREE.Vector3( 0, -1,  0 ), 0 ),
+					new THREE.Plane( new THREE.Vector3( 0,  0, -1 ), 0 )
+				];
+
+				scene.add( new THREE.AmbientLight( 0x505050 ) );
+
+				group = new THREE.Object3D();
+
+				for ( var i = 1; i < 25; i ++ ) {
+
+					var geometry = new THREE.SphereBufferGeometry( i / 2, 48, 48 );
+					var material = new THREE.MeshStandardMaterial( {
+						color: new THREE.Color( Math.sin( i * 0.5 ) * 0.5 + 0.5, Math.cos( i * 1.5 ) * 0.5 + 0.5, Math.sin( i * 4.5 + 0 ) * 0.5 + 0.5 ),
+						roughness: 0.95,
+						metalness: 0.0,
+						side: THREE.DoubleSide,
+						clippingPlanes: clipPlanes,
+						clipIntersection: true
+					} );
+					group.add( new THREE.Mesh( geometry, material ) );
+
+				}
+
+				//scene.add( group );
+				var loader = new THREE.STLLoader();
+				loader.load( 'examples/models/stl/ascii/4.stl', function ( geometry ) {
+
+					var material = new THREE.MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200 } );
+					var mesh = new THREE.Mesh( geometry, material );
+
+					mesh.position.set( 0, - 0.25, 0.6 );
+					mesh.rotation.set( 0, - Math.PI / 2, 0 );
+					mesh.scale.set( 0.5, 0.5, 0.5 );
+
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+
+					scene.add( mesh );
+
+				} );
+                                // Load the background texture
+	///////////
+	// VIDEO //
+	///////////
+
+	video = document.getElementById( 'monitor' );
+	
+	videoImage = document.getElementById( 'videoImage' );
+	videoImageContext = videoImage.getContext( '2d' );
+	// background color if no video present
+	videoImageContext.fillStyle = '#000000';
+	videoImageContext.fillRect( 0, 0, videoImage.width, videoImage.height );
+
+	videoTexture = new THREE.Texture( videoImage );
+	videoTexture.minFilter = THREE.LinearFilter;
+	videoTexture.magFilter = THREE.LinearFilter;
+       videoTexture.wrapS = THREE.RepeatWrapping;
+       videoTexture.repeat.x = - 1;
+	
+	var movieMaterial = new THREE.MeshBasicMaterial( { map: videoTexture, overdraw: true, side:THREE.DoubleSide } );
+        // Load the background texture
+         backgroundtexture = THREE.ImageUtils.loadTexture( '1.jpg' );
+        // backgroundtexture = new THREE.Texture( videoImage );
+         backgroundMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2, 2, 0),
+            new THREE.MeshBasicMaterial({
+                map: videoTexture
+            }));
+
+        backgroundMesh .material.depthTest = false;
+        backgroundMesh .material.depthWrite = false;
+
+        // Create your background scene
+         backgroundScene = new THREE.Scene();
+         backgroundCamera = new THREE.Camera();
+        backgroundScene .add(backgroundCamera );
+        backgroundScene .add(backgroundMesh );
+				// Renderer
+
+				var container = document.body;
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.antialias = true;
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setClearColor( 0x222222 );
+				renderer.localClippingEnabled = true;
+
+				window.addEventListener( 'resize', onWindowResize, false );
+				container.appendChild( renderer.domElement );
+
+				// Stats
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				// GUI
+
+				mode = {};
+				mode.clipIntersection = true;
+				mode.clipPosition = 0;
+
+				var gui = new dat.GUI();
+				gui.add( mode, 'clipIntersection' ).onChange( function () {
+
+					var children = group.children;
+
+					for ( var i = 0; i < children.length; i ++ ) {
+
+						var child = children[ i ];
+						child.material.clipIntersection = ! child.material.clipIntersection;
+
+					}
+
+				} );
+				//gui.add( mode, 'clipPosition', -16, 16 );
+
+				// Controls
+
+				var controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.target.set( 0, 1, 0 );
+				controls.update();
+
+				// Start
+
+				startTime = Date.now();
+				time = 0;
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+                        function update()
+{		
+	if ( keyboard.pressed("p") ) // pause
+		video.pause();
+	if ( keyboard.pressed("r") ) // resume
+		video.play();
+	controls.update();
+	stats.update();
+}
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+                                	if ( video.readyState === video.HAVE_ENOUGH_DATA ) 
+	{
+		videoImageContext.drawImage( video, 0, 0, videoImage.width, videoImage.height );
+		if ( videoTexture ) 
+			videoTexture.needsUpdate = true;
+	}
+        renderer.autoClear = false;
+        renderer.clear();
+        renderer.render(backgroundScene , backgroundCamera );
+//
+//				var children = group.children;
+//
+//				for ( var i = 0; i < children.length; i ++ ) {
+//
+//					var current = children[ i ].material;
+//
+//					for ( var j = 0; j < current.clippingPlanes.length; j ++ ) {
+//
+//						var plane = current.clippingPlanes[ j ];
+//						plane.constant = ( 49 * plane.constant + mode.clipPosition ) / 50;
+//
+//					}
+//
+//				}
+
+				stats.begin();
+				renderer.render( scene, camera );
+				stats.end();
+                                render();
+                                update();
+
+			}
+
+		</script>
+
+	</body>
+</html>
