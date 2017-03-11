@@ -1,4 +1,4 @@
-###This is an application to visualize superimposed an stl file on webcam video, made with the help of three.js and other examples provided by other developers.
+###This is an application to visualize  an stl file  superimposedon webcam video, made with the help of three.js and other examples provided by other developers.
 #####The app has used these examples besides the main three.js:
 #####https://stemkoski.github.io/Three.js/Webcam-Texture.html
 #####http://jeremy.assenat.free.fr/Lab/threejsbg/
