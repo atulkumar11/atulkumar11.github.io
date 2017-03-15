@@ -144,8 +144,8 @@ var video, videoImage, videoImageContext, backgroundtexture, backgroundMesh,vide
 	videoTexture = new THREE.Texture( videoImage );
 	videoTexture.minFilter = THREE.LinearFilter;
 	videoTexture.magFilter = THREE.LinearFilter;
-     //  videoTexture.wrapS = THREE.RepeatWrapping;
-      // videoTexture.repeat.x = - 1;
+       videoTexture.wrapS = THREE.RepeatWrapping;
+       videoTexture.repeat.x = - 1;
 	
 	var movieMaterial = new THREE.MeshBasicMaterial( { map: videoTexture, overdraw: true, side:THREE.DoubleSide } );
         // Load the background texture
