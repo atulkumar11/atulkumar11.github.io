@@ -133,8 +133,8 @@
 
                 //definition of the camera and creation of the scene
                 camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 800);
-                camera.position.set(-20, 10, 50);
-                camera.lookAt(new THREE.Vector3(0, 0, 0, ));
+                camera.position.set(0,0,0);//-20, 10, 50);
+                camera.lookAt(new THREE.Vector3(0, 0, 10, ));
                 scene = new THREE.Scene();
                 //Lights
                 var light = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
@@ -331,6 +331,13 @@
                     for (let n = 0; n < len; n++) {
                         opacities[n].onChange(function (value) {
                             meshes[n].material.opacity = value;
+//                 meshes[n].computeBoundingBox();
+
+//                var centerX = 0.5 * ( meshes[n].boundingBox.x[ 1 ] - meshes[n].boundingBox.x[ 0 ] );
+//                var centerY = 0.5 * ( meshes[n].boundingBox.y[ 1 ] - meshes[n].boundingBox.y[ 0 ] );
+//                var centerZ = 0.5 * ( meshes[n].boundingBox.z[ 1 ] - meshes[n].boundingBox.z[ 0 ] );
+//                camera.target.position.copy( object.position );
+//                camera.target.position.addSelf( new THREE.Vector3( centerX, centerY, centerZ ) );
                         });
                     }
 
