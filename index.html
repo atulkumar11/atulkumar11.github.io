@@ -1,278 +1,434 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
-<!--	<head>
-		<title>three.js webgl - clipIntersection</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<style>
-			body {
-				margin: 0px;
-				background-color: #000000;
-				overflow: hidden;
-			}
-		</style>
-	</head>-->
-	<body>
+<
+<head>
+    <title>WebIsurg</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=yes, minimum-scale=1.0, maximum-scale=1.0">
+    <!-- CSS Elements: width, maw-width, height and max-height in monitor and image allowed to keep aspect ratio of the video during resizing, 
+        the values came from the 16/9 (*100)aspect ratio of the camera maybe need to adapt to 4:3 depending of the device used which will change the aspect of the video-->
+    <!-- z-index is different for every element, it is because if we don't do it the different element will 'push' the others -->
+    <style>
+        
+        body {
+            position: absolute;
+            top: 0px;
+            margin: 0px 0px 0px 0px;
+            z-index: 3;
+            overflow: hidden;
+        }
+
+        #monitor {
+            margin: 0px 0px 0px 0px;
+            position: absolute;
+            width: 100vw;
+            height: 56.25vw;
+            max-height: 100vw;
+            max-width: 177.78vw;
+            top: 0px;
+            left: 0px;
+            float: left;
+            visibility: hidden;
+            z-index: 1;
+        }
+
+        #videoImage {
+            margin: 0px 0px 0px 0px;
+            position: absolute;
+            width: 100vw;
+            height: 56.25vw;
+            max-height: 100vw;
+            max-width: 177.78vw;
+            top: 0px;
+            left: 0px;
+            float: left;
+            visibility: hidden;
+            z-index: 5;
+        }
+
+        #File {
+            position: absolute;
+            top: 0px;
+            left: 800px;
+            z-index: 7;
+        }
+    </style>
+</head>
+<!-- The next part is creation of canvas and video element, canvas is an object where we can display images, and the video will get the webcam images-->
 <p id="errorMessage"></p>
+<body>
+    <video id="monitor" autoplay width="500" height="500"></video>
+    <canvas id="videoImage" width="500" height="500"></canvas>
 
-<video id="monitor" autoplay width="500" height="500" style="visibility: hidden; float:left;"></video>
-<canvas id="videoImage" width="500" height="500" style="visibility: hidden; float:left;"></canvas>
+    <form>
+        <input type="file" id="File" onload="files_loaded(this.files)" multiple>
+    </form>
+    <div>
+        <!--The following script allowed to Connect the webcam to the application if camera available, or to print a message error if the camera is not available, this came from Lee Stemkoski's works https://stemkoski.github.io/Three.js/Webcam-Texture.html -->
+        <script>
+            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+            window.URL = window.URL || window.webkitURL;
+            var camvideo = document.getElementById('monitor');
+            if (!navigator.getUserMedia) {
+                document.getElementById('errorMessage').innerHTML =
+                    'Sorry. <code>navigator.getUserMedia()</code> is not available.';
+            } else {
+                navigator.getUserMedia({ video: true }, gotStream, noStream);
+            }
+            function gotStream(stream) {
+                if (window.URL)
+                { camvideo.src = window.URL.createObjectURL(stream); }
+                else // Opera <-- this comment was here before 
+                { camvideo.src = stream; }
+                camvideo.onerror = function (e)
+                { stream.stop(); };
+                stream.onended = noStream;
+            }
+            function noStream(e) {
+                var msg = 'No camera available.';
+                if (e.code == 1)
+                { msg = 'User denied access to use camera.'; }
+                document.getElementById('errorMessage').textContent = msg;
+            }
+        </script>
+        <!-- This following script tags allowed to add scripts to our application, to use objects defined in these scripts. Further information at threejs.org. The path depends on how you managed your directory-->
+        <script src="build/three.js"></script>
+        <script src="examples/js/controls/OrbitControls.js"></script>
+        <script src="examples/js/libs/stats.min.js"></script>
+        <script src="examples/js/libs/dat.gui.min.js"></script>
+        <script src="examples/js/loaders/STLLoader.js"></script>
+        <script src="examples/js/renderers/Projector.js"></script>
+        <script src="examples/js/Detector.js"></script>
+        <script src="examples/js/libs/stats.min.js"></script>
+        <script src="examples/js/THREEx.KeyboardState.js"></script>
 
-<script>
-navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-window.URL = window.URL || window.webkitURL;
 
-var camvideo = document.getElementById('monitor');
 
-	if (!navigator.getUserMedia) 
-	{
-		document.getElementById('errorMessage').innerHTML = 
-			'Sorry. <code>navigator.getUserMedia()</code> is not available.';
-	} else {
-		navigator.getUserMedia({video: true}, gotStream, noStream);
-	}
+        <script>
+            var camera, scene, renderer;     // creation of variable necessary for a three js application 
+            //creation of variables use for the display.
+            var video, videoImage, videoImageContext, videoTexture, backgroundtexture, backgroundMesh, backgroundScene, backgroundCamera, stats, controls, mesh;  
 
-function gotStream(stream) 
-{
-	if (window.URL) 
-	{   camvideo.src = window.URL.createObjectURL(stream);   } 
-	else // Opera
-	{   camvideo.src = stream;   }
+            //Variable for store elements, like the files to use or the variables to use in the gui
+            var group;
+            var fileElem; 
+            var meshes = [];
+            var gui;
+            var variable = [];
+            var hiders = [];
+            var h;
+            
+            
+            //loading textures in a txt file
+            var text_data = [];
+            var color_data = [];
+            var colors_to_apply = [];      
+            var Color = [];
+            //var textures = [];
+            
+            //initialisation and looping the scene
+            init();
+            animate();
+            function init() {
 
-	camvideo.onerror = function(e) 
-	{   stream.stop();   };
+                //definition of the camera and creation of the scene
+                camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 800);
+                camera.position.set(-20, 10, 50);
+                camera.lookAt(new THREE.Vector3(0, 0, 0, ));
+                scene = new THREE.Scene();
+                //Lights
+                var light = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
+                scene.add(light);
+                scene.add(new THREE.AmbientLight(0x505050));
+                // Video, we store in two variables our canvas and video objects
+                video = document.getElementById('monitor');
+                videoImage = document.getElementById('videoImage');
+                //we get the context of the context in order to 'draw' inside
+                videoImageContext = videoImage.getContext('2d');
+                
 
-	stream.onended = noStream;
-}
 
-function noStream(e) 
-{
-	var msg = 'No camera available.';
-	if (e.code == 1) 
-	{   msg = 'User denied access to use camera.';   }
-	document.getElementById('errorMessage').textContent = msg;
-}
-</script>
-		<script src="build/three.js"></script>
-		<script src="examples/js/controls/OrbitControls.js"></script>
-		<script src="examples/js/libs/stats.min.js"></script>
-		<script src="examples/js/libs/dat.gui.min.js"></script>
-		<script src="examples/js/loaders/STLLoader.js"></script>
+                // Background color if no video present
+                videoImageContext.fillStyle = '#000000';
+                videoImageContext.fillRect(0, 0, videoImage.innerWidth, videoImage.innerHeight);
+                videoTexture = new THREE.Texture(videoImage);
+                videoTexture.minFilter = THREE.LinearFilter;
+                videoTexture.magFilter = THREE.LinearFilter;
+                var movieMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, overdraw: true, side: THREE.DoubleSide });
+                //Load the background texture and use the video played in the canvas as a texture
+                backgroundtexture = new THREE.Texture(videoImage);
+                backgroundMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2, 0), new THREE.MeshBasicMaterial({ map: videoTexture }));
+                backgroundMesh.material.depthTest = false;
+                backgroundMesh.material.depthWrite = false;
+                // Create Background scene
+                backgroundScene = new THREE.Scene();
+                backgroundCamera = new THREE.Camera();
+                backgroundScene.add(backgroundCamera);
+                backgroundScene.add(backgroundMesh);
+                // Renderer
+                var container = document.body;
+                //creation of a renderer which will contain the application in the browser page. This is necessary to have a renderer in three js
+                renderer = new THREE.WebGLRenderer();
+                renderer.antialias = true;
+                //Set PixelRAtio and size of the renderer, we want a full screen application so we need to fit the size of the renderer with the window of the browser  
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setClearColor(0x222222);
+                renderer.localClippingEnabled = true;
 
-		<script src="examples/js/Detector.js"></script>
-		<!--<script src="js/libs/stats.min.js"></script>-->
+                //We add an event listener when the window is resized by the user. This allowed the application to stay 'fit' with the window
+                //onwindowresize is a function which is implemented at the animate function
+                window.addEventListener('resize', onWindowResize, false);
+                container.appendChild(renderer.domElement);
+                // Stats 
+                stats = new Stats();
+                container.appendChild(stats.dom);
+                // Load Files selected by the user
+                group = new THREE.Object3D(); //not necessary
+                //get the files selected by the user
+                fileElem = document.getElementById("File");
 
-		<script>
+                //read the txt file containing color information
+                function readTextFile(file) {
+                    var rawFile = new XMLHttpRequest();
+                    rawFile.open("GET", file);
+                    rawFile.onreadystatechange = function () {
+                        if (rawFile.readyState === 4) {
+                            if (rawFile.status === 200 || rawFile.status == 0) {
+                                var allText = rawFile.responseText;
 
-			var camera, scene, renderer;
-			var group;
-var video, videoImage, videoImageContext, backgroundtexture, backgroundMesh,videoTexture,controls, stats,mesh;
-        var backgroundScene;
-        var backgroundCamera;
-			init();
-			animate();
+                                //we read and split for every blank space in the text file
+                                text_data = allText.split('\n');
+                                for (var j = 0; j < text_data.length; j++) {
+                                    color_data.push(text_data[j].split(" "));
+                                    //color_data contain the color information of each organes
+                                }
+                                
+                            }
+                        }
+                    }
+                    rawFile.send(null);
+                }
+                readTextFile("http://localhost:58817/work/examples/textures/ApplicationTextures/test3.txt");
 
-			function init() {
+                //try to find a way to figure out how to get a fix path and not depend on the local host
+                
+                              
 
-				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 800 );
+                //initialize loaders
+                var loader = new THREE.STLLoader();
+             //   var mamap = new THREE.TextureLoader(); this one is only used if we want to get color from jpg images
 
-				camera.position.set( -20, 10, 50 );
-				camera.lookAt( new THREE.Vector3( 0, 0, 0) );
 
-				scene = new THREE.Scene();
+                // event fired when the user finished the selection of stl files
+                fileElem.addEventListener('change', function (event) {
 
-				// Lights
+                    var i,
+                        files = fileElem.files,
+                        len = files.length;
 
-				var light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
-				scene.add( light );
+                    //this loop is only here if we want to get colors from jpg images, 
+                   /* for (var j = 0; j < len; j++) {
+                        var myMap = mamap.load('examples/textures/ApplicationTextures/' + files[j].name.split(".").reverse().pop() + '.jpg');
+                        textures.push(myMap);
+                    }*/
 
-				var clipPlanes = [
-					new THREE.Plane( new THREE.Vector3( 1,  0,  0 ), 0 ),
-					new THREE.Plane( new THREE.Vector3( 0, -1,  0 ), 0 ),
-					new THREE.Plane( new THREE.Vector3( 0,  0, -1 ), 0 )
-				];
+                   // we fill a variable with the color of the txt file
 
-				scene.add( new THREE.AmbientLight( 0x505050 ) );
+                   for (var z = 0; z < color_data.length; z++) {
+                       for (var y = 1; y < color_data[z].length; y++) {
+                           colors_to_apply.push(color_data[z][y]);
+                           
+                       }
+                        
+                   }
 
-				group = new THREE.Object3D();
 
-				for ( var i = 1; i < 25; i ++ ) {
+                    //function for load every files 
 
-					var geometry = new THREE.SphereBufferGeometry( i / 2, 48, 48 );
-					var material = new THREE.MeshStandardMaterial( {
-						color: new THREE.Color( Math.sin( i * 0.5 ) * 0.5 + 0.5, Math.cos( i * 1.5 ) * 0.5 + 0.5, Math.sin( i * 4.5 + 0 ) * 0.5 + 0.5 ),
-						roughness: 0.95,
-						metalness: 0.0,
-						side: THREE.DoubleSide,
-						clippingPlanes: clipPlanes,
-						clipIntersection: true
-					} );
-					group.add( new THREE.Mesh( geometry, material ) );
+                    var callback = function (geometry) {
 
-				}
+                        
+                        // we get the rgb colors from the txt file
+                        var coloration = new THREE.Color(colors_to_apply[v], colors_to_apply[v + 1], colors_to_apply[v + 2])
+                        //we convert them in hexadecimal, rgbToHex is define further
+                        var new_coloration = rgbToHex(coloration.r, coloration.g, coloration.b);
+                        //we apply it to the material, the material is update at every call of the callback function
+                        var material = new THREE.MeshPhongMaterial({ transparent: true, color: new_coloration });   //map: textures[i] }); this is for color from jpg
+                        material.depthWrite = false; // important, if set to right, when we change the opacity of an organe, everything behind will be hidden
 
-				//scene.add( group );
-				var loader = new THREE.STLLoader();
-				loader.load( 'examples/models/stl/ascii/4.stl', function ( geometry ) {
 
-					var material = new THREE.MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200 } );
-					var mesh = new THREE.Mesh( geometry, material );
 
-					mesh.position.set( 0, - 0.25, 0.6 );
-					mesh.rotation.set( 0, - Math.PI / 2, 0 );
-					mesh.scale.set( 0.5, 0.5, 0.5 );
+                        //caracteristics of the mesh
+                        mesh = new THREE.Mesh(geometry, material);
+                        //position and size
+                        mesh.position.set(0, 0, 0);
+                        mesh.rotation.set(0, -Math.PI / 2, 0);
+                        mesh.scale.set(0.05, 0.05, 0.05);
+                        //shadows
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                        //we set the name of the mesh
+                        mesh.name = files[i].name;
+                        meshes[i] = mesh;
+                        //hiders is a variable which will be used to hide object in the gui
+                        hiders.push(mesh);
+                        group.add(mesh);
+                        //update iterators
+                        i++;
+                        v += 3;
 
-					mesh.castShadow = true;
-					mesh.receiveShadow = true;
+                        if (i < len)  // put the next load in the callback, while i < number of files, we havn't load the files so we load the next file
+                        {
+                            loader.load('examples/models/stl/ascii/' + files[i].name, callback);
 
-					scene.add( mesh );
 
-				} );
-                                // Load the background texture
-	///////////
-	// VIDEO //
-	///////////
+                        }
+                    };
+                    v=0
+                    i = 0;
+                    //first call of the loader of stl file
+                    loader.load('examples/models/stl/ascii/' + files[i].name, callback);
 
-	video = document.getElementById( 'monitor' );
-	
-	videoImage = document.getElementById( 'videoImage' );
-	videoImageContext = videoImage.getContext( '2d' );
-	// background color if no video present
-	videoImageContext.fillStyle = '#000000';
-	videoImageContext.fillRect( 0, 0, 1024 , 768);//videoImage.width, videoImage.height );
+                    //GUI
+                    //initialisation of gui
+                    gui = new dat.GUI();
+                    var folders = [];
+                    var opacities = [];
+                    //creation of the parameters of the gui
+                    for (var k = 0; k < len; k++) {
+                        h = {
+                            toggleObjects: true,
+                            full_scene: true,
+                            reset_scene: function () { reset_scene(); },
+                            color: "#ff0000",
+                            camera_locked: false,
+                            opacity: 1
+                        };
+                        //separate every organes in folders in the gui
+                        //add the 3 options
+                        folders[k] = gui.addFolder(files[k].name.split(".").reverse().pop());
+                        variable[k] = folders[k].add(h, 'toggleObjects').name('Visible').listen();
+                        Color[k] = folders[k].addColor(h, 'color').name('color').listen();
+                        opacities[k] = folders[k].add(h, 'opacity').min(0).max(1).step(0.01).name('Opacity').listen();
 
-	videoTexture = new THREE.Texture( videoImage );
-	videoTexture.minFilter = THREE.LinearFilter;
-	videoTexture.magFilter = THREE.LinearFilter;
-      // videoTexture.wrapS = THREE.RepeatWrapping;
-      // videoTexture.repeat.x = - 1;
-	
-	var movieMaterial = new THREE.MeshBasicMaterial( { map: videoTexture, overdraw: true, side:THREE.DoubleSide } );
-        // Load the background texture
-         backgroundtexture = THREE.ImageUtils.loadTexture( '1.jpg' );
-        // backgroundtexture = new THREE.Texture( videoImage );
-         backgroundMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(2, 2, 0),
-            new THREE.MeshBasicMaterial({
-                map: videoTexture
-            }));
+                    }
 
-        backgroundMesh .material.depthTest = false;
-        backgroundMesh .material.depthWrite = false;
+                    //let is VERY important because if we use var, it doesn't work because var keep the last value of the loop and so only the last mesh is active. let avoid this problem
+                    for (let l = 0; l < len; l++) {
 
-        // Create your background scene
-         backgroundScene = new THREE.Scene();
-         backgroundCamera = new THREE.Camera();
-        backgroundScene .add(backgroundCamera );
-        backgroundScene .add(backgroundMesh );
-				// Renderer
+                        variable[l].onChange(function (value) {
 
-				var container = document.body;
+                            hiders[l].visible = value;
+                        });
+                    }
+                    //Change Color of the object. The color will be based on the initial color, coming from the txt file, of the file loaded
+                    for (let m = 0; m < len; m++) {
+                        Color[m].onChange(function (value)
+                        { meshes[m].material.color.setHex(value.replace("#", "0x")); });
+                    }
+                    //Change opacities of every object 
+                    for (let n = 0; n < len; n++) {
+                        opacities[n].onChange(function (value) {
+                            meshes[n].material.opacity = value;
+                        });
+                    }
 
-				renderer = new THREE.WebGLRenderer();
-				renderer.antialias = true;
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.setClearColor( 0x222222 );
-				renderer.localClippingEnabled = true;
+                    //Hide the scene to go in traditionnal endoscopic view
+                    var hide_scene = gui.add(h, 'full_scene').name('Hide Scene').listen();
+                    hide_scene.onChange(function (value) { scene.visible = value; });
 
-				window.addEventListener( 'resize', onWindowResize, false );
-				container.appendChild( renderer.domElement );
+                    //Rest the positions
+                    gui.add(h, 'reset_scene').name('Reset');
+                    function reset_scene() {
+                        controls.reset();
+                        for (let n = 0; n < len; n++) {
+                            meshes[n].visible = true;
+                        }
 
-				// Stats
+                    }
+                    //Disable controls button
+                    var lock_camera = gui.add(h, 'camera_locked').name('Lock Model').listen();
+                    lock_camera.onChange(function (value) {
+                        controls.enableZoom = !value;
+                        controls.enableRotate = !value;
+                        controls.enablePan = !value;
+                    });
 
-				stats = new Stats();
-				container.appendChild( stats.dom );
+                }, false);
 
-				// GUI
 
-				mode = {};
-				mode.clipIntersection = true;
-				mode.clipPosition = 0;
+                scene.add(group);
 
-				var gui = new dat.GUI();
-				gui.add( mode, 'clipIntersection' ).onChange( function () {
 
-					var children = group.children;
+                // Controls, allowed to move the elements of the scene, care it is the camera which moves, not the objects of the scene
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.target.set(0, 1, 0);
+                controls.update();
+                // Start
+                startTime = Date.now();
+                time = 0;
+            }
 
-					for ( var i = 0; i < children.length; i ++ ) {
+            //end init
 
-						var child = children[ i ];
-						child.material.clipIntersection = ! child.material.clipIntersection;
 
-					}
+            //convert color from rgb to hex
+            function componentToHex(c) {
+                var hex = parseFloat(c).toString(16);
+                return hex.length == 1 ? "0" + hex : hex;
+            }
 
-				} );
-				//gui.add( mode, 'clipPosition', -16, 16 );
+            function rgbToHex(r, g, b) {
+                return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+            }
+            //Allow the rendering
 
-				// Controls
+            function render() {
 
-				var controls = new THREE.OrbitControls( camera, renderer.domElement );
-				controls.target.set( 0, 1, 0 );
-				controls.update();
+                renderer.render(scene, camera);
+            }
 
-				// Start
+            //Function call if the window is resized by the user
+            function onWindowResize() {
+                //We resize the canvas 
+                videoImage.width = videoImage.clientWidth;
+                videoImage.height = videoImage.clientHeight;
+                //We resize the renderer at the new size of the canvas, the canvas can change size thx to the css options (16:9 values)
+                renderer.setViewport(0, 0, videoImage.clientWidth, videoImage.clientHeight);
+                renderer.setSize(videoImage.clientWidth, videoImage.clientHeight);
+                //we update the aspect of the camera with the new canvas dimensions
+                camera.aspect = videoImage.clientWidth / videoImage.clientHeight;
+                camera.updateProjectionMatrix();
+            }
+            //Update the controls and the stats, which allowed us to move the objects in the scene
+            function update() {
+                controls.update();
+                stats.update();
+            }
+            //animate is essential in order to have the webcam images on the background, it cames from three js documentation and Lee Stemkoski works on webcam textures 
+            function animate() {
+                requestAnimationFrame(animate);
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    videoImageContext.drawImage(video, 0, 0, videoImage.width, videoImage.height);
+                    if (videoTexture) {
+                        videoTexture.needsUpdate = true;
+                    }
+                }
+                
+                renderer.autoClear = false;
+                renderer.clear();
+                renderer.render(backgroundScene, backgroundCamera);
+                renderer.localClippingEnabled = false;
+                stats.begin();
+                renderer.render(scene, camera);
+                stats.end();
+                render();
+                update();
+            }
+        </script>
+    </div>
 
-				startTime = Date.now();
-				time = 0;
+</body>
 
-			}
-
-			function onWindowResize() {
-
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
-
-				renderer.setSize( window.innerWidth, window.innerHeight );
-
-			}
-                        function update()
-{		
-	if ( keyboard.pressed("p") ) // pause
-		video.pause();
-	if ( keyboard.pressed("r") ) // resume
-		video.play();
-	controls.update();
-	stats.update();
-}
-
-			function animate() {
-
-				requestAnimationFrame( animate );
-                                	if ( video.readyState === video.HAVE_ENOUGH_DATA ) 
-	{
-		videoImageContext.drawImage( video, 0, 0, videoImage.width, videoImage.height );
-		if ( videoTexture ) 
-			videoTexture.needsUpdate = true;
-	}
-        renderer.autoClear = false;
-        renderer.clear();
-        renderer.render(backgroundScene , backgroundCamera );
-//
-//				var children = group.children;
-//
-//				for ( var i = 0; i < children.length; i ++ ) {
-//
-//					var current = children[ i ].material;
-//
-//					for ( var j = 0; j < current.clippingPlanes.length; j ++ ) {
-//
-//						var plane = current.clippingPlanes[ j ];
-//						plane.constant = ( 49 * plane.constant + mode.clipPosition ) / 50;
-//
-//					}
-//
-//				}
-
-				stats.begin();
-				renderer.render( scene, camera );
-				stats.end();
-                                render();
-                                update();
-
-			}
-
-		</script>
-
-	</body>
 </html>
