@@ -1,0 +1,43 @@
+body {
+    position: absolute;
+    top: 0px;
+    margin: 0px 0px 0px 0px;
+    z-index: 3;
+    overflow: hidden;
+}
+
+#monitor {
+    margin: 0px 0px 0px 0px;
+    position: absolute;
+    width: 100vw;
+    height: 56.25vw;
+    max-height: 100vw;
+    max-width: 177.78vw;
+    top: 0px;
+    left: 0px;
+    float: left;
+    visibility: hidden;
+    z-index: 1;
+}
+
+#videoImage {
+    margin: 0px 0px 0px 0px;
+    position: absolute;
+    width: 100vw;
+    height: 56.25vw;
+    max-height: 100vw;
+    max-width: 177.78vw;
+    top: 0px;
+    left: 0px;
+    float: left;
+    visibility: hidden;
+    z-index: 5;
+}
+
+#file {
+    position: absolute;
+    top: 0px;
+    left: 800px;
+    z-index: 7;
+    
+}
